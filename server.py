@@ -4,23 +4,41 @@ import json
 from colored import fg, bg, attr
 
 
+class Client:
+    def __init__(self, client, nickname):
+        self.client = client
+        self.nickname = client.nickname
+
+
 clients = []
 
 
-def broadcast(message):
+def broadcast(message, nickname='server'):
     for client in clients:
-        client.send(message)
+        d = {'nickname': nickname, 'message': message}
+        # json_string = f'{{"nickname": "{nickname}", "message": "{message}"}}'
+        json_string = json.dumps(d)
+        client.send(json_string.encode('utf-8'))
 
 
-def serve_client(client):
+def whisper(client, message):
+    d = {'nickname': 'server', 'message': message}
+    json_string = json.dumps(d)
+    client.send(json_string.encode('utf-8'))
+
+# json.dump({'nickname': client.nickname, message: message})
+
+
+def serve_client(c):
     while True:
         try:
-            message = client.recv(1024)
+            # client = next(cl for cl in clients if cl.client == c)
+            message = c.recv(1024).decode('ascii')
             broadcast(message)
         except:
-            index = clients.index(client)
-            clients.remove(index)
-            client.close()
+            clients.remove(c)
+            c.close()
+            broadcast('Someone has left the room')
             break
 
 
@@ -36,10 +54,10 @@ def main():
     while True:
         c, address = ss.accept()
         print('Connected to:', address)
-        c.send('Enter nickname:'.encode('ascii'))
+        whisper(c, 'Enter nickname:')
         nickname = c.recv(1024).decode('ascii')
         clients.append(c)
-        broadcast(f'{nickname} has joined the room'.encode('ascii'))
+        broadcast(f'{nickname} has joined the room')
         thread = threading.Thread(target=serve_client, args=(c,))
         thread.start()
 

@@ -1,6 +1,7 @@
 import socket
 import os
 import threading
+import json
 from colored import fg, bg, attr
 
 
@@ -16,10 +17,15 @@ s.connect((host, port))
 def receive():
     while True:
         try:
-            message = s.recv(1024).decode('ascii')
+            data = s.recv(1024).decode('utf-8')
+            json_object = json.loads(data)
+            nickname = json_object.get('nickname')
+            message = json_object.get('message')
+            if nickname != 'server':
+                message = f'{nickname}: {message}'
             print(message)
-        except ConnectionRefusedError:
-            print('An error has occured')
+        except:
+            print('An error has occurred')
             s.close()
             break
 
