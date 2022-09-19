@@ -4,21 +4,21 @@ import json
 from colored import fg, bg, attr
 
 
-class Client:
+class User:
     def __init__(self, client, nickname):
         self.client = client
-        self.nickname = client.nickname
+        self.nickname = nickname
 
 
-clients = []
+users = []
 
 
 def broadcast(message, nickname='server'):
-    for client in clients:
-        d = {'nickname': nickname, 'message': message}
-        # json_string = f'{{"nickname": "{nickname}", "message": "{message}"}}'
-        json_string = json.dumps(d)
-        client.send(json_string.encode('utf-8'))
+    d = {'nickname': nickname, 'message': message}
+    json_string = json.dumps(d)
+
+    for user in users:
+        user.client.send(json_string.encode('utf-8'))
 
 
 def whisper(client, message):
@@ -26,17 +26,15 @@ def whisper(client, message):
     json_string = json.dumps(d)
     client.send(json_string.encode('utf-8'))
 
-# json.dump({'nickname': client.nickname, message: message})
-
 
 def serve_client(c):
     while True:
         try:
-            # client = next(cl for cl in clients if cl.client == c)
             message = c.recv(1024).decode('ascii')
-            broadcast(message)
+            nickname = next(cl for cl in users if cl.client == c).nickname
+            broadcast(message, nickname)
         except:
-            clients.remove(c)
+            users.remove(next(cl for cl in users if cl.client == c))
             c.close()
             broadcast('Someone has left the room')
             break
@@ -56,7 +54,13 @@ def main():
         print('Connected to:', address)
         whisper(c, 'Enter nickname:')
         nickname = c.recv(1024).decode('ascii')
-        clients.append(c)
+        while nickname == 'server':
+            whisper(c, 'Invalid nickname')
+            whisper(c, 'Enter nickname:')
+            nickname = c.recv(1024).decode('ascii')
+
+        client = User(c, nickname)
+        users.append(client)
         broadcast(f'{nickname} has joined the room')
         thread = threading.Thread(target=serve_client, args=(c,))
         thread.start()
